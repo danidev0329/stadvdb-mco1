@@ -1,5 +1,13 @@
 # STADVDB MCO1: Query Processing in a Data Warehouse
 
+## Team Members
+| Name | Contribution |
+|---|---|
+| Daniel Rebudiao | Created the ETL Script |
+| Jandeil Dural | ... |
+| Lance Dimalanta | ... |
+| Dion Cubarrubias | ... |
+
 ---
 
 ## Project Architecture
