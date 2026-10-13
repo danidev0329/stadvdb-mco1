@@ -52,9 +52,6 @@ stadvdb-mco1/
 ├── benchmarks/                (Member 4)
 │   ├── run_benchmarks.py      runs each query N times, saves timings + EXPLAIN
 │   └── results/               baseline vs. optimized outputs
-│
-└── scripts/
-    └── package_submission.sh  builds STADVDB-MCO1-GroupN.zip with required names
 ```
 
 ---
