@@ -1,7 +1,10 @@
 # STADVDB MCO1: Query Processing in a Data Warehouse
 
---Project Architecture
+---
 
+## Project Architecture
+
+```
 stadvdb-mco1/
 ├── README.md                  setup steps, team roles, git workflow
 ├── .gitignore                 ignores .env, data dumps, benchmark CSVs
@@ -53,3 +56,6 @@ stadvdb-mco1/
 │
 └── scripts/
     └── package_submission.sh  builds STADVDB-MCO1-GroupN.zip with required names
+```
+
+---
