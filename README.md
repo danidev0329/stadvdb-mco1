@@ -13,11 +13,6 @@ stadvdb-mco1/
 ├── Makefile                   shortcuts: make up, schema, etl, app, test, bench
 ├── requirements.txt           Python dependencies
 │
-├── .github/
-│   ├── workflows/ci.yml       runs tests against a MySQL service on every push/PR
-│   ├── pull_request_template.md
-│   └── CODEOWNERS             maps each folder to its owner for reviews
-│
 ├── docker/init/
 │   └── 00_create_databases.sql    creates source_db and dw on first start
 │
@@ -49,10 +44,6 @@ stadvdb-mco1/
 ├── benchmarks/                (Member 4)
 │   ├── run_benchmarks.py      runs each query N times, saves timings + EXPLAIN
 │   └── results/               baseline vs. optimized outputs
-│
-├── docs/
-│   ├── ai-prompts.md          running log of AI use (also a required deliverable)
-│   └── contribution-record.md draft of report section 9.3
 │
 └── scripts/
     └── package_submission.sh  builds STADVDB-MCO1-GroupN.zip with required names
