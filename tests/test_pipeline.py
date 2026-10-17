@@ -116,3 +116,46 @@ class TestRunEtlExitCode:
         )
         monkeypatch.setattr(run_etl, "run_checks", lambda log: True)
         assert run_etl.main([]) == 0
+
+
+class TestFullRefreshGuard:
+    def _stub_run(self, monkeypatch, calls):
+        import etl.run_etl as run_etl
+
+        def fake_run(jobs, full_refresh=False, dry_run=False):
+            calls.append(([j.name for j in jobs], full_refresh))
+            return [JobStats(job=j.name) for j in jobs]
+
+        monkeypatch.setattr(run_etl.pipeline, "run", fake_run)
+        monkeypatch.setattr(run_etl, "run_checks", lambda log: True)
+
+    def test_partial_full_refresh_is_refused(self, monkeypatch):
+        import etl.run_etl as run_etl
+        calls = []
+        self._stub_run(monkeypatch, calls)
+        assert run_etl.main(["--full-refresh", "--only", "dim_users"]) == 2
+        assert calls == []
+
+    def test_full_refresh_allowed(self, monkeypatch):
+        import etl.run_etl as run_etl
+        calls = []
+        self._stub_run(monkeypatch, calls)
+        assert run_etl.main(["--full-refresh"]) == 0
+        assert calls and calls[0][1] is True
+
+    def test_full_refresh_with_all_jobs_allowed(self, monkeypatch):
+        import etl.run_etl as run_etl
+        from etl.mapping import JOBS
+        calls = []
+        self._stub_run(monkeypatch, calls)
+        names = [j.name for j in JOBS]
+        assert run_etl.main(["--full-refresh", "--only", *names]) == 0
+        assert calls and calls[0][1] is True
+
+    def test_only_without_full_refresh_allowed(self, monkeypatch):
+        import etl.run_etl as run_etl
+        calls = []
+        self._stub_run(monkeypatch, calls)
+        assert run_etl.main(["--only", "dim_users"]) == 0
+        assert calls and calls[0][1] is False
+

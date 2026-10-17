@@ -3,6 +3,9 @@
   python -m etl.run_etl --only dim_customer  # run selected jobs
   python -m etl.run_etl --full-refresh       # truncate targets first (FK checks off during TRUNCATE)
   python -m etl.run_etl --dry-run            # extract + transform only, nothing loaded
+
+Note: --full-refresh cannot be combined with a partial --only (truncating a subset
+orphans dependent tables) -- either drop --full-refresh or list every job.
 """
 import argparse, logging, sys
 from etl import pipeline
@@ -24,6 +27,12 @@ def main(argv=None) -> int:
     unknown = set(a.only or []) - {j.name for j in JOBS}
     if unknown:
         log.error("unknown job(s): %s", ", ".join(sorted(unknown)))
+        return 2
+
+    if a.full_refresh and a.only and set(a.only) != {j.name for j in JOBS}:
+        log.error("--full-refresh requires a full run; it cannot be combined with a partial "
+                  "--only (truncating a subset orphans dependent tables). "
+                  "Drop --full-refresh, or list all jobs.")
         return 2
 
     results = pipeline.run(jobs, full_refresh=a.full_refresh, dry_run=a.dry_run)

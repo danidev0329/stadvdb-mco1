@@ -28,4 +28,5 @@ extract.py   load.py   pipeline.py   run_etl.py   validate.py   profile.py
 `python -m etl.run_etl`                         # full load + validation
 `python -m etl.run_etl --only dim_users`         # subset
 `python -m etl.run_etl --dry-run`                # extract+transform only
+`python -m etl.run_etl --full-refresh`           # full run only; rejected with a partial --only
 `python -m etl.profile`                          # source data profile

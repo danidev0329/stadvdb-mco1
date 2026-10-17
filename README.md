@@ -113,10 +113,13 @@ The ETL only needs a reachable MySQL server; the defaults match a local MySQL 8.
 ```
 python -m etl.run_etl                      # run all jobs, then validate
 python -m etl.run_etl --only dim_users     # run selected jobs
-python -m etl.run_etl --full-refresh       # truncate targets first
+python -m etl.run_etl --full-refresh       # truncate all targets first (full run only)
 python -m etl.run_etl --dry-run            # extract + transform only, nothing loaded
 python -m etl.profile                      # write docs/source-profile.md
 ```
+
+`--full-refresh` cannot be combined with a partial `--only`: truncating a subset would
+orphan dependent tables (and reset their surrogate keys), so the CLI rejects that with exit 2.
 
 The run exits non-zero if any validation check fails.
 
