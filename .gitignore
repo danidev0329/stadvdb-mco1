@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ETL run artifacts (per-run reject rows + summaries, evidence kept locally)
+etl/rejects/
+etl/runs/
+

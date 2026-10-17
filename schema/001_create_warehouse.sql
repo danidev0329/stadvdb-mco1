@@ -131,6 +131,7 @@ CREATE TABLE Fact_OrderItems (
     notes           VARCHAR(500),
     quantity        INT           NOT NULL,
     CONSTRAINT pk_fact_orderitems PRIMARY KEY (order_item_key),
+    CONSTRAINT uq_fact_orderitems_line UNIQUE (order_key, product_key),
     CONSTRAINT fk_items_order
         FOREIGN KEY (order_key)   REFERENCES Dim_Orders (order_key),
     CONSTRAINT fk_items_product
