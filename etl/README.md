@@ -17,6 +17,7 @@ extract.py   load.py   pipeline.py   run_etl.py   validate.py   profile.py
 - **Volume**: chunked reads (`ETL_CHUNK_SIZE`), batched multi-row inserts (`ETL_BATCH_SIZE`), commit per chunk.
 - **Idempotent**: `INSERT ... ON DUPLICATE KEY UPDATE`; needs UNIQUE keys on natural keys (e.g. `UNIQUE(source_id)`) in dimension tables.
 - **Data quality**: bad rows raise `Reject` -> `etl/rejects/*.jsonl` with reason; run counts in `etl/runs/*.json`.
+- **Error containment**: a non-`Reject` failure (e.g. schema drift) fails that job only; the run stops and the summary is still written, and the CLI exits non-zero.
 - **Validation**: source-vs-warehouse reconciliation + zero-count integrity checks after every run; non-zero exit code on failure.
 - **Order**: dimensions before facts; facts resolve surrogate keys via `load.key_map`.
 - Add `etl/rejects/` and `etl/runs/` to .gitignore.

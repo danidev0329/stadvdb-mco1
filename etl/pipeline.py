@@ -18,6 +18,7 @@ class JobStats:
     rejected: int = 0
     skipped: int = 0
     seconds: float = 0.0
+    error: str | None = None   # non-Reject failure (contained so the run summary is kept)
 
 class RejectLog:
     def __init__(self, job: str, enabled: bool = True):
@@ -40,8 +41,9 @@ class RejectLog:
 
 def run_job(job: Job, full_refresh=False, dry_run=False) -> JobStats:
     stats, t0 = JobStats(job.name), time.perf_counter()
-    conn = warehouse()
+    conn = None
     try:
+        conn = warehouse()
         if full_refresh and not dry_run:
             load.truncate(conn, job.target)
         ctx = job.prepare(conn) if job.prepare else {}
@@ -62,13 +64,23 @@ def run_job(job: Job, full_refresh=False, dry_run=False) -> JobStats:
                         good.append(out)
                 stats.loaded += len(good) if dry_run else load.upsert(conn, job.target, job.columns, good)
                 log.info("%s: read=%d loaded=%d rejected=%d", job.name, stats.read, stats.loaded, stats.rejected)
+    except Exception as e:                      # contain per job: log, record, keep the run summary
+        stats.error = f"{type(e).__name__}: {e}"
+        log.exception("%s failed: %s", job.name, stats.error)
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
     stats.seconds = round(time.perf_counter() - t0, 2)
     return stats
 
 def run(jobs: list[Job], full_refresh=False, dry_run=False) -> list[JobStats]:
-    results = [run_job(j, full_refresh, dry_run) for j in jobs]
+    results: list[JobStats] = []
+    for job in jobs:                            # fail fast: stop at the first failed job
+        stats = run_job(job, full_refresh, dry_run)
+        results.append(stats)
+        if stats.error:
+            log.error("stopping run after failed job: %s", job.name)
+            break
     config.RUN_DIR.mkdir(parents=True, exist_ok=True)
     out = config.RUN_DIR / f"run_{datetime.now():%Y%m%d_%H%M%S}.json"
     out.write_text(json.dumps([asdict(r) for r in results], indent=2))

@@ -26,7 +26,11 @@ def main(argv=None) -> int:
         log.error("unknown job(s): %s", ", ".join(sorted(unknown)))
         return 2
 
-    pipeline.run(jobs, full_refresh=a.full_refresh, dry_run=a.dry_run)
+    results = pipeline.run(jobs, full_refresh=a.full_refresh, dry_run=a.dry_run)
+    failed = [r.job for r in results if r.error]
+    if failed:
+        log.error("job(s) failed: %s", ", ".join(failed))
+        return 1
     if a.dry_run or a.skip_validate:
         return 0
     return 0 if run_checks(log) else 1

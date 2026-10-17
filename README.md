@@ -137,6 +137,7 @@ database. The reconciliation/zero-check tests connect to `source_db` and
 - **Volume**: chunked reads (`ETL_CHUNK_SIZE`), batched multi-row inserts (`ETL_BATCH_SIZE`), one commit per chunk.
 - **Idempotent**: `INSERT ... ON DUPLICATE KEY UPDATE`; every dimension has a `UNIQUE` natural key and the fact has `UNIQUE(order_key, product_key)`, so re-running never duplicates rows.
 - **Data quality**: bad rows raise `Reject` and are written to `etl/rejects/*.jsonl` with a reason; per-run counts go to `etl/runs/*.json`.
+- **Error containment**: a non-`Reject` failure (e.g. schema drift) fails only that job — the run stops, the summary is still written, and the CLI exits non-zero (validation is skipped).
 - **Validation**: source-vs-warehouse reconciliation (row counts + total quantity) and zero-count integrity checks (orphan FKs, null measures) after every run.
 - **Order**: dimensions before facts; fact rows resolve surrogate keys via `load.key_map`.
 - **Wrangling rules**: text clean-up, splitting/merging names, gender + vehicle category standardization, age bucketing, mixed-format date parsing, and type casting.
