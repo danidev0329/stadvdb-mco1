@@ -3,9 +3,12 @@
   python -m etl.profile orders customers --no-distinct
 Writes docs/source-profile.md; paste findings into the report's data-quality section."""
 import argparse
+import sys
 from pathlib import Path
 from etl import config
 from etl.db import source
+
+OUT_PATH = Path(__file__).resolve().parents[1] / "docs" / "source-profile.md"
 
 def main():
     ap = argparse.ArgumentParser()
@@ -16,7 +19,18 @@ def main():
     conn = source(); cur = conn.cursor()
     cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema=%s AND table_type='BASE TABLE'",
                 (config.SOURCE_DB,))
-    tables = a.tables or [r[0] for r in cur.fetchall()]
+    discovered = [r[0] for r in cur.fetchall()]
+    if a.tables:
+        unknown = [t for t in a.tables if t not in discovered]
+        for u in unknown:
+            print(f"warning: skipping unknown table: {u}", file=sys.stderr)
+        tables = [t for t in a.tables if t in discovered]
+        if not tables:
+            print("error: no known tables to profile", file=sys.stderr)
+            conn.close()
+            return 1
+    else:
+        tables = discovered
     lines = ["# Source data profile\n"]
     for tb in tables:
         cur.execute(f"SELECT COUNT(*) FROM `{tb}`"); n = cur.fetchone()[0]
@@ -33,9 +47,10 @@ def main():
             lines.append(f"| {col} | {typ} | {100 * nulls / n:.1f} | {dist} |" if n else f"| {col} | {typ} | - | - |")
         lines.append("")
     conn.close()
-    out = Path("docs/source-profile.md"); out.parent.mkdir(exist_ok=True)
+    out = OUT_PATH; out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines))
     print("\n".join(lines)); print(f"\nSaved to {out}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

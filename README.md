@@ -38,6 +38,9 @@ stadvdb-mco1/
 │
 ├── data/                      local source dumps (never committed)
 │
+├── docs/
+│   └── source-profile.md      generated source data profile (row counts, null %, distincts)
+│
 ├── olap/                      (Member 3)  -- not yet implemented
 │   ├── queries.py             parameterized SQL (roll-up, drill-down, slice, dice, pivot)
 │   ├── app.py                 web backend exposing the queries as endpoints
@@ -139,7 +142,7 @@ database. The reconciliation/zero-check tests connect to `source_db` and
 - **Wrangling rules**: text clean-up, splitting/merging names, gender + vehicle category standardization, age bucketing, mixed-format date parsing, and type casting.
 
 ### Current status
-- ETL (extract/transform/load), validation, and unit/integration tests are implemented and verified end-to-end.
+- ETL (extract/transform/load), validation, unit/integration tests, and the source data profile are implemented and verified end-to-end.
 - `olap/`, `tests/test_olap_queries.py`, and `benchmarks/` are still to be built.
 
 ---
