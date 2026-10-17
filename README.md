@@ -43,10 +43,14 @@ stadvdb-mco1/
 │   ├── app.py                 web backend exposing the queries as endpoints
 │   └── templates/index.html   dashboard with filters and granularity controls
 │
-├── tests/                     (Member 3, plus Member 2 for ETL checks)  -- not yet implemented
+├── tests/                     (Member 3, plus Member 2 for ETL checks)
+│   ├── conftest.py                shared fixtures (skip DB tests when MySQL is down)
 │   ├── test_transform.py          unit tests for the wrangling rules
+│   ├── test_mapping.py            row transforms + job/schema consistency
 │   ├── test_etl_validation.py     source vs. warehouse reconciliation
-│   └── test_olap_queries.py       correct results for different parameters
+│   └── test_olap_queries.py       correct results for different parameters  -- not yet implemented
+│
+├── pytest.ini                 pytest config (pythonpath, testpaths, markers)
 │
 └── benchmarks/                (Member 4)  -- not yet implemented
     ├── run_benchmarks.py      runs each query N times, saves timings + EXPLAIN
@@ -113,6 +117,19 @@ python -m etl.profile                      # write docs/source-profile.md
 
 The run exits non-zero if any validation check fails.
 
+### Running tests
+
+```
+pip install -r requirements.txt
+python -m pytest -q                     # full suite
+python -m pytest -m "not db" -q         # skip the DB-backed reconciliation tests
+python -m pytest tests/test_transform.py -q
+```
+
+The pure unit tests (transform rules, mapping rows, schema consistency) need no
+database. The reconciliation/zero-check tests connect to `source_db` and
+`data_warehouse` and **skip automatically** when MySQL or the data isn't available.
+
 ### Design notes (reuse in the report)
 - **Volume**: chunked reads (`ETL_CHUNK_SIZE`), batched multi-row inserts (`ETL_BATCH_SIZE`), one commit per chunk.
 - **Idempotent**: `INSERT ... ON DUPLICATE KEY UPDATE`; every dimension has a `UNIQUE` natural key and the fact has `UNIQUE(order_key, product_key)`, so re-running never duplicates rows.
@@ -122,8 +139,8 @@ The run exits non-zero if any validation check fails.
 - **Wrangling rules**: text clean-up, splitting/merging names, gender + vehicle category standardization, age bucketing, mixed-format date parsing, and type casting.
 
 ### Current status
-- ETL (extract/transform/load) + validation are implemented and verified end-to-end.
-- `olap/`, `tests/`, and `benchmarks/` are still to be built.
+- ETL (extract/transform/load), validation, and unit/integration tests are implemented and verified end-to-end.
+- `olap/`, `tests/test_olap_queries.py`, and `benchmarks/` are still to be built.
 
 ---
 
