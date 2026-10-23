@@ -12,6 +12,12 @@ MYSQL = dict(
     user=os.getenv("MYSQL_USER", "root"),
     password=os.getenv("MYSQL_PASSWORD", ""),
 )
+
+# Cloud MySQL providers such as Aiven require TLS. Leave MYSQL_SSL_CA unset for
+# local MySQL; set it to the provider's CA certificate path when deploying.
+if os.getenv("MYSQL_SSL_CA"):
+    MYSQL["ssl_ca"] = os.getenv("MYSQL_SSL_CA")
+    MYSQL["ssl_verify_cert"] = True
 SOURCE_DB = os.getenv("SOURCE_DB", "source_db")
 WAREHOUSE_DB = os.getenv("WAREHOUSE_DB", "data_warehouse")
 

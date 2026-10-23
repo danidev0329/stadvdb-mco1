@@ -223,3 +223,7 @@ __marimo__/
 etl/rejects/
 etl/runs/
 
+# Local database dumps created for deployment
+data_warehouse*.sql
+*.sql.gz
+
