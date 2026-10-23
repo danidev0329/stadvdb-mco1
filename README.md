@@ -6,7 +6,7 @@
 | Daniel Rebudiao | Created the ETL Script |
 | Jandeil Dural | ... |
 | Lance Dimalanta | ... |
-| Dion Cubarrubias | ... |
+| Dion Cubarrubias | Created OLAP Application |
 
 ---
 
@@ -41,7 +41,7 @@ stadvdb-mco1/
 ├── docs/
 │   └── source-profile.md      generated source data profile (row counts, null %, distincts)
 │
-├── olap/                      (Member 3)  -- not yet implemented
+├── olap/                      (Member 3)  
 │   ├── queries.py             parameterized SQL (roll-up, drill-down, slice, dice, pivot)
 │   ├── app.py                 web backend exposing the queries as endpoints
 │   └── templates/index.html   dashboard with filters and granularity controls
@@ -118,6 +118,25 @@ python -m etl.run_etl --dry-run            # extract + transform only, nothing l
 python -m etl.profile                      # write docs/source-profile.md
 ```
 
+## Running the OLAP Web Application & Dashboard
+
+The OLAP application provides an interactive decision-support dashboard connected to the dimensional data warehouse (`data_warehouse`), supporting multi-dimensional analysis with responsive Chart.js visualizations.
+
+### 1. Start the Flask backend:
+```bash
+python -m olap.app
+```
+*(By default, the server starts on `http://127.0.0.1:5000`)*
+
+### 2. Access the Analytical Dashboard:
+Open your browser and navigate to `http://localhost:5000`.
+
+### 3. Supported OLAP Operations:
+* **Roll-Up (`/api/rollup`):** Multi-level hierarchical aggregation across temporal granularities (`year`, `quarter`, `month`, `day`) computing super-aggregate subtotals and grand totals in a single database pass via `WITH ROLLUP`.
+* **Drill-Down (`/api/drilldown`):** Interactive top-down de-aggregation navigating from fiscal year down to quarters, months, and individual calendar days.
+* **Slice (`/api/slice`):** Isolating performance along a single fixed dimension (`courier`, `gender`, `city`, `product`, `vehicle_type`) across time with dynamic join pruning.
+* **Dice (`/api/dice`):** Constrained subcube extraction evaluating the intersection of multiple simultaneous filter criteria (Date Range $\times$ Courier $\times$ Gender $\times$ City $\times$ Vehicle Type).
+* **Pivot (`/api/pivot`):** Relational cross-tabulation dynamically transposing courier rows into horizontal columns (`SUM(CASE WHEN ...)`), enabling direct side-by-side carrier volume comparisons alongside row-level grand totals.
 `--full-refresh` cannot be combined with a partial `--only`: truncating a subset would
 orphan dependent tables (and reset their surrogate keys), so the CLI rejects that with exit 2.
 
@@ -147,7 +166,7 @@ database. The reconciliation/zero-check tests connect to `source_db` and
 
 ### Current status
 - ETL (extract/transform/load), validation, unit/integration tests, and the source data profile are implemented and verified end-to-end.
-- `olap/`, `tests/test_olap_queries.py`, and `benchmarks/` are still to be built.
+-  OLAP Application, Parameterized queries, Flask REST API, interactive dashboard
 
 ---
 

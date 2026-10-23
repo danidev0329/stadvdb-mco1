@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="STADVDB MCO1 OLAP Dashboard — interactive analytical reports with roll-up, drill-down, slice, dice, and pivot operations on a star-schema data warehouse.">
+  <title>OLAP Dashboard — STADVDB MCO1</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ================================================================
+       Design tokens
+       ================================================================ */
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d27;
+      --surface2:    #242836;
+      --border:      #2e3345;
+      --text:        #e4e6f0;
+      --text-muted:  #8b8fa3;
+      --accent:      #6c5ce7;
+      --accent2:     #a29bfe;
+      --success:     #00cec9;
+      --warning:     #fdcb6e;
+      --danger:      #ff7675;
+      --radius:      10px;
+      --shadow:      0 4px 24px rgba(0,0,0,.35);
+      --transition:  .2s ease;
+      --font:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* ================================================================
+       Reset & base
+       ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ================================================================
+       Sidebar
+       ================================================================ */
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      max-height: 100vh;
+      position: sticky;
+      top: 0;
+    }
+    .sidebar h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -.3px;
+    }
+    .sidebar .subtitle {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: -12px;
+    }
+    .sidebar hr {
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* form controls */
+    label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 5px;
+    }
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: .85rem;
+      outline: none;
+      transition: border var(--transition);
+    }
+    select:focus, input:focus {
+      border-color: var(--accent);
+    }
+    select option { background: var(--surface2); }
+
+    .field { display: flex; flex-direction: column; }
+    .field-row { display: flex; gap: 10px; }
+    .field-row .field { flex: 1; }
+
+    /* run button */
+    .btn-run {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-family: var(--font);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition);
+    }
+    .btn-run:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-run:active { transform: translateY(0); }
+
+    /* operation pills */
+    .op-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .op-pills button {
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-family: var(--font);
+      font-size: .78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .op-pills button:hover { border-color: var(--accent); color: var(--text); }
+    .op-pills button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* conditional filter groups */
+    .filter-group { display: flex; flex-direction: column; gap: 12px; }
+    .filter-group.hidden { display: none; }
+
+    /* ================================================================
+       Main content
+       ================================================================ */
+    .main {
+      flex: 1;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      overflow-y: auto;
+    }
+
+    /* header bar */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .topbar h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .topbar .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+
+    /* chart card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 340px;
+    }
+
+    /* status messages */
+    .status-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      color: var(--text-muted);
+      font-size: .95rem;
+    }
+    .status-msg.error { color: var(--danger); }
+
+    /* data table */
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-size: .72rem;
+      border-bottom: 2px solid var(--border);
+    }
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr {
+      transition: background var(--transition);
+    }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr.subtotal-row {
+      background: rgba(108, 92, 231, .08);
+      font-weight: 600;
+    }
+
+    /* loading spinner */
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* drill-down breadcrumb */
+    .breadcrumb {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: .8rem;
+      flex-wrap: wrap;
+    }
+    .breadcrumb a {
+      color: var(--accent2);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb .sep { color: var(--text-muted); }
+
+    /* responsive */
+    @media (max-width: 900px) {
+      body { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        min-width: unset;
+        max-height: unset;
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================== SIDEBAR ============================== -->
+<aside class="sidebar">
+  <h1>📊 OLAP Dashboard</h1>
+  <p class="subtitle">STADVDB MCO1 Data Warehouse Analytics</p>
+  <hr>
+
+  <!-- Operation selector -->
+  <div class="field">
+    <label>OLAP Operation</label>
+    <div class="op-pills" id="opPills">
+      <button class="active" data-op="rollup">Roll-Up</button>
+      <button data-op="drilldown">Drill-Down</button>
+      <button data-op="slice">Slice</button>
+      <button data-op="dice">Dice</button>
+      <button data-op="pivot">Pivot</button>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Granularity (shared by rollup, slice, dice, pivot) -->
+  <div class="field" id="granField">
+    <label>Granularity</label>
+    <select id="granularity">
+      <option value="year">Year</option>
+      <option value="quarter">Quarter</option>
+      <option value="month" selected>Month</option>
+      <option value="day">Day</option>
+    </select>
+  </div>
+
+  <!-- ──── Roll-Up filters ──── -->
+  <div class="filter-group" id="fg-rollup">
+    <div class="field">
+      <label>Year (optional)</label>
+      <select id="ru-year"><option value="">All</option></select>
+    </div>
+    <div class="field">
+      <label>Courier (optional)</label>
+      <select id="ru-courier"><option value="">All</option></select>
+    </div>
+  </div>
+
+  <!-- ──── Drill-Down filters ──── -->
+  <div class="filter-group hidden" id="fg-drilldown">
+    <div class="field">
+      <label>Year (required)</label>
+      <select id="dd-year"></select>
+    </div>
+    <div class="field">
+      <label>Quarter (optional — drills deeper)</label>
+      <select id="dd-quarter"><option value="">— select year first —</option></select>
+    </div>
+    <div class="field">
+      <label>Month (optional — drills to day)</label>
+      <select id="dd-month"><option value="">— select quarter first —</option></select>
+    </div>
+    <div class="field">
+      <label>Courier (optional)</label>
+      <select id="dd-courier"><option value="">All</option></select>
+    </div>
+  </div>
+
+  <!-- ──── Slice filters ──── -->
+  <div class="filter-group hidden" id="fg-slice">
+    <div class="field">
+      <label>Dimension to slice on</label>
+      <select id="sl-dim">
+        <option value="courier">Courier</option>
+        <option value="gender">Gender</option>
+        <option value="city">City</option>
+        <option value="vehicle_type">Vehicle Type</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Value</label>
+      <select id="sl-val"><option value="">loading…</option></select>
+    </div>
+  </div>
+
+  <!-- ──── Dice filters ──── -->
+  <div class="filter-group hidden" id="fg-dice">
+    <div class="field-row">
+      <div class="field">
+        <label>Year from</label>
+        <select id="di-ystart"><option value="">Any</option></select>
+      </div>
+      <div class="field">
+        <label>Year to</label>
+        <select id="di-yend"><option value="">Any</option></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Courier</label>
+      <select id="di-courier"><option value="">Any</option></select>
+    </div>
+    <div class="field">
+      <label>User Gender</label>
+      <select id="di-gender"><option value="">Any</option></select>
+    </div>
+    <div class="field">
+      <label>City</label>
+      <select id="di-city"><option value="">Any</option></select>
+    </div>
+    <div class="field">
+      <label>Vehicle Type</label>
+      <select id="di-vehicle"><option value="">Any</option></select>
+    </div>
+  </div>
+
+  <!-- ──── Pivot filters ──── -->
+  <div class="filter-group hidden" id="fg-pivot">
+    <div class="field-row">
+      <div class="field">
+        <label>Year from</label>
+        <select id="pv-ystart"><option value="">Any</option></select>
+      </div>
+      <div class="field">
+        <label>Year to</label>
+        <select id="pv-yend"><option value="">Any</option></select>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-run" id="btnRun">▶ Run Query</button>
+
+  <div id="queryTime" style="text-align:center;font-size:.75rem;color:var(--text-muted);"></div>
+</aside>
+
+<!-- ============================== MAIN ============================== -->
+<main class="main">
+  <div class="topbar">
+    <h2 id="reportTitle">Roll-Up Report</h2>
+    <span class="badge" id="rowCount">0 rows</span>
+  </div>
+
+  <!-- Drill-down breadcrumb -->
+  <div class="breadcrumb" id="breadcrumb" style="display:none;"></div>
+
+  <!-- Chart -->
+  <div class="card">
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="status-msg" id="chartStatus">Select filters and click <strong>▶ Run Query</strong> to start.</div>
+  </div>
+
+  <!-- Data table -->
+  <div class="card">
+    <div class="table-wrap">
+      <table id="dataTable" style="display:none;">
+        <thead id="tHead"></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+      <div class="status-msg" id="tableStatus"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================== JS ============================== -->
+<script>
+// ── state ──
+let filters   = {};
+let currentOp = "rollup";
+let chartObj  = null;
+
+const TITLES = {
+  rollup:    "Roll-Up Report",
+  drilldown: "Drill-Down Report",
+  slice:     "Slice Report",
+  dice:      "Dice Report",
+  pivot:     "Pivot Report",
+};
+
+const PALETTE = [
+  "rgba(108,92,231,.85)",
+  "rgba(0,206,201,.85)",
+  "rgba(253,203,110,.85)",
+  "rgba(255,118,117,.85)",
+  "rgba(162,155,254,.85)",
+  "rgba(85,239,196,.85)",
+  "rgba(250,177,160,.85)",
+  "rgba(116,185,255,.85)",
+];
+
+// ── init ──
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadFilters();
+  wireOps();
+  wireSliceDim();
+  document.getElementById("btnRun").addEventListener("click", runQuery);
+});
+
+// ── load dimension values ──
+async function loadFilters() {
+  try {
+    const r = await fetch("/api/filters");
+    filters = await r.json();
+    populateSelect("ru-year",   filters.years,  true);
+    populateSelect("ru-courier",filters.couriers,true);
+    populateSelect("dd-year",   filters.years,  false);
+    populateSelect("dd-courier",filters.couriers,true);
+    populateSelect("sl-val",    filters.couriers,false);   // default dim=courier
+    populateSelect("di-ystart", filters.years,  true);
+    populateSelect("di-yend",   filters.years,  true);
+    populateSelect("di-courier",filters.couriers,true);
+    populateSelect("di-gender", filters.genders, true);
+    populateSelect("di-city",   filters.cities,  true);
+    populateSelect("di-vehicle",filters.vehicle_types,true);
+    populateSelect("pv-ystart", filters.years,  true);
+    populateSelect("pv-yend",   filters.years,  true);
+  } catch(e) { console.error("filter load failed", e); }
+}
+
+function populateSelect(id, values, addAll) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = "";
+  if (addAll) sel.innerHTML = '<option value="">All</option>';
+  (values||[]).forEach(v => {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+// ── operation pill switching ──
+function wireOps() {
+  document.querySelectorAll("#opPills button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelector("#opPills .active").classList.remove("active");
+      btn.classList.add("active");
+      currentOp = btn.dataset.op;
+      document.getElementById("reportTitle").textContent = TITLES[currentOp];
+      // show/hide filter groups
+      document.querySelectorAll(".filter-group").forEach(g => g.classList.add("hidden"));
+      document.getElementById("fg-"+currentOp).classList.remove("hidden");
+      // granularity visibility
+      document.getElementById("granField").style.display =
+        currentOp === "drilldown" ? "none" : "";
+      // breadcrumb
+      document.getElementById("breadcrumb").style.display =
+        currentOp === "drilldown" ? "" : "none";
+    });
+  });
+}
+
+// ── slice dimension picker ──
+function wireSliceDim() {
+  document.getElementById("sl-dim").addEventListener("change", e => {
+    const map = {
+      courier: filters.couriers,
+      gender:  filters.genders,
+      city:    filters.cities,
+      vehicle_type: filters.vehicle_types,
+    };
+    populateSelect("sl-val", map[e.target.value]||[], false);
+  });
+}
+
+// ── run the selected query ──
+async function runQuery() {
+  const btn = document.getElementById("btnRun");
+  btn.disabled = true; btn.textContent = "⏳ Running…";
+  showLoading();
+  const t0 = performance.now();
+
+  try {
+    let url, rows;
+    switch (currentOp) {
+      case "rollup":
+        url = buildURL("/api/rollup", {
+          granularity: gv("granularity"),
+          year:    gv("ru-year"),
+          courier: gv("ru-courier"),
+        });
+        rows = await fetchJSON(url); break;
+
+      case "drilldown":
+        url = buildURL("/api/drilldown", {
+          year:    gv("dd-year"),
+          quarter: gv("dd-quarter"),
+          month:   gv("dd-month"),
+          courier: gv("dd-courier"),
+        });
+        rows = await fetchJSON(url);
+        buildBreadcrumb();
+        break;
+
+      case "slice":
+        url = buildURL("/api/slice", {
+          dimension:   gv("sl-dim"),
+          value:       gv("sl-val"),
+          granularity: gv("granularity"),
+        });
+        rows = await fetchJSON(url); break;
+
+      case "dice":
+        url = buildURL("/api/dice", {
+          year_start:   gv("di-ystart"),
+          year_end:     gv("di-yend"),
+          courier:      gv("di-courier"),
+          gender:       gv("di-gender"),
+          city:         gv("di-city"),
+          vehicle_type: gv("di-vehicle"),
+          granularity:  gv("granularity"),
+        });
+        rows = await fetchJSON(url); break;
+
+      case "pivot":
+        url = buildURL("/api/pivot", {
+          granularity: gv("granularity"),
+          year_start:  gv("pv-ystart"),
+          year_end:    gv("pv-yend"),
+        });
+        rows = await fetchJSON(url); break;
+    }
+
+    const ms = Math.round(performance.now() - t0);
+    document.getElementById("queryTime").textContent = `Query completed in ${ms} ms`;
+    document.getElementById("rowCount").textContent = `${rows.length} rows`;
+
+    renderTable(rows);
+    renderChart(rows);
+  } catch(e) {
+    showError(e.message || "Query failed");
+  } finally {
+    btn.disabled = false; btn.textContent = "▶ Run Query";
+  }
+}
+
+// ── helpers ──
+function gv(id) { return document.getElementById(id)?.value || ""; }
+
+function buildURL(path, params) {
+  const u = new URL(path, location.origin);
+  Object.entries(params).forEach(([k,v]) => { if(v) u.searchParams.set(k,v); });
+  return u.toString();
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+// ── table rendering ──
+function renderTable(rows) {
+  const tbl = document.getElementById("dataTable");
+  const head = document.getElementById("tHead");
+  const body = document.getElementById("tBody");
+  const status = document.getElementById("tableStatus");
+
+  if (!rows.length) {
+    tbl.style.display = "none";
+    status.textContent = "No rows returned.";
+    return;
+  }
+  status.textContent = "";
+  tbl.style.display = "";
+
+  const cols = Object.keys(rows[0]);
+  head.innerHTML = "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
+  body.innerHTML = rows.map(r => {
+    const isSubtotal = cols.some(c => r[c] === null && c !== "total_qty" && c !== "line_count" && c !== "grand_total");
+    return `<tr class="${isSubtotal ? 'subtotal-row' : ''}">`
+         + cols.map(c => `<td>${r[c] !== null ? formatVal(c,r[c]) : '<em>TOTAL</em>'}</td>`).join("")
+         + "</tr>";
+  }).join("");
+}
+
+function formatVal(col, v) {
+  if (typeof v === "number" && (col.includes("qty") || col.includes("count") || col.includes("total")))
+    return v.toLocaleString();
+  return v;
+}
+
+// ── chart rendering ──
+function renderChart(rows) {
+  const status = document.getElementById("chartStatus");
+  const canvas = document.getElementById("chart");
+  status.style.display = "none";
+  canvas.style.display = "";
+
+  if (chartObj) chartObj.destroy();
+
+  if (!rows.length) {
+    canvas.style.display = "none";
+    status.style.display = ""; status.textContent = "No data to chart.";
+    return;
+  }
+
+  const cols = Object.keys(rows[0]);
+
+  // For pivot: multi-series (one per courier)
+  if (currentOp === "pivot") {
+    const labelCols = cols.filter(c => !["total_qty","line_count","grand_total"].includes(c) && !filters.couriers?.includes(c));
+    const dataCols  = cols.filter(c => filters.couriers?.includes(c) || c === "grand_total");
+    const labels = rows.filter(r => r[labelCols[0]] !== null).map(r => labelCols.map(c => r[c]).join("-"));
+    const datasets = dataCols.map((dc, i) => ({
+      label: dc,
+      data: rows.filter(r => r[labelCols[0]] !== null).map(r => r[dc] || 0),
+      backgroundColor: PALETTE[i % PALETTE.length],
+      borderColor: PALETTE[i % PALETTE.length].replace(".85", "1"),
+      borderWidth: 1,
+    }));
+    chartObj = new Chart(canvas, {
+      type: "bar",
+      data: { labels, datasets },
+      options: chartOpts("Pivot — Quantity by Courier"),
+    });
+    return;
+  }
+
+  // Standard: single-series bar chart of total_qty
+  const measureCol = cols.find(c => c === "total_qty") || cols.find(c => c === "line_count");
+  if (!measureCol) { status.style.display = ""; status.textContent = "No measure column found."; return; }
+
+  const labelCols = cols.filter(c => c !== "total_qty" && c !== "line_count");
+  // Filter out rollup subtotal rows (null) for chart
+  const dataRows = rows.filter(r => labelCols.every(c => r[c] !== null));
+  const labels = dataRows.map(r => labelCols.map(c => r[c]).join(" · "));
+
+  chartObj = new Chart(canvas, {
+    type: dataRows.length > 30 ? "line" : "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Total Quantity",
+        data: dataRows.map(r => r[measureCol]),
+        backgroundColor: PALETTE[0],
+        borderColor: PALETTE[0].replace(".85","1"),
+        borderWidth: 2,
+        fill: true,
+        tension: .3,
+      }],
+    },
+    options: chartOpts(TITLES[currentOp]),
+  });
+}
+
+function chartOpts(title) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: "#e4e6f0", font: { family: "'Inter'" } } },
+      title:  { display: true, text: title, color: "#e4e6f0", font: { size: 15, family: "'Inter'", weight: 600 } },
+    },
+    scales: {
+      x: { ticks: { color: "#8b8fa3", font: { family: "'Inter'" }, maxRotation: 60 }, grid: { color: "rgba(46,51,69,.5)" } },
+      y: { ticks: { color: "#8b8fa3", font: { family: "'Inter'" } }, grid: { color: "rgba(46,51,69,.5)" },
+           beginAtZero: true },
+    },
+  };
+}
+
+// ── status helpers ──
+function showLoading() {
+  document.getElementById("chartStatus").innerHTML = '<div class="spinner"></div>';
+  document.getElementById("chartStatus").style.display = "";
+  document.getElementById("chart").style.display = "none";
+  document.getElementById("tableStatus").innerHTML = '<div class="spinner"></div>';
+  document.getElementById("dataTable").style.display = "none";
+}
+function showError(msg) {
+  document.getElementById("chartStatus").innerHTML = `<span class="error">⚠ ${msg}</span>`;
+  document.getElementById("chartStatus").style.display = "";
+  document.getElementById("tableStatus").innerHTML = "";
+}
+
+// ── drill-down breadcrumb ──
+function buildBreadcrumb() {
+  const bc = document.getElementById("breadcrumb");
+  const yr = gv("dd-year"), qt = gv("dd-quarter"), mo = gv("dd-month");
+  let html = `<a onclick="ddNav('')">All Years</a>`;
+  if (yr) {
+    html += `<span class="sep">›</span><a onclick="ddNav('${yr}')">${yr}</a>`;
+  }
+  if (qt) {
+    html += `<span class="sep">›</span><a onclick="ddNav('${yr}','${qt}')">Q${qt}</a>`;
+  }
+  if (mo) {
+    html += `<span class="sep">›</span><span>Month ${mo}</span>`;
+  }
+  bc.innerHTML = html;
+}
+
+function ddNav(yr, qt) {
+  document.getElementById("dd-year").value = yr || filters.years?.[0] || "";
+  document.getElementById("dd-quarter").value = qt || "";
+  document.getElementById("dd-month").value = "";
+  if (yr) {
+    populateDDQuarters();
+  }
+  runQuery();
+}
+
+function populateDDQuarters() {
+  const sel = document.getElementById("dd-quarter");
+  sel.innerHTML = '<option value="">All Quarters</option>';
+  [1,2,3,4].forEach(q => {
+    const o = document.createElement("option");
+    o.value = q; o.textContent = "Q"+q;
+    sel.appendChild(o);
+  });
+}
+
+// wire up drill-down cascading selects
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("dd-year").addEventListener("change", () => {
+    populateDDQuarters();
+    document.getElementById("dd-month").innerHTML = '<option value="">All Months</option>';
+  });
+  document.getElementById("dd-quarter").addEventListener("change", () => {
+    const sel = document.getElementById("dd-month");
+    sel.innerHTML = '<option value="">All Months</option>';
+    const qt = parseInt(gv("dd-quarter"));
+    if (!qt) return;
+    const start = (qt-1)*3 + 1;
+    for (let m = start; m < start+3; m++) {
+      const o = document.createElement("option");
+      o.value = m; o.textContent = "Month " + m;
+      sel.appendChild(o);
+    }
+  });
+});
+</script>
+</body>
+</html>
